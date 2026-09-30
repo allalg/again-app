@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Progress } from '@/components/ui/Progress'
 import { toast } from '@/components/ui/Toaster'
+import { LiveCameraCapture } from '@/components/ui/LiveCameraCapture'
 import { validateImageFile, generateStoragePath, formatDeadline, isDeadlinePast } from '@/lib/utils'
 
 interface UploadedFile {
@@ -28,10 +29,24 @@ export function SubmitProofPage() {
   const { user, profile } = useAuthStore()
   const navigate = useNavigate()
   const [files, setFiles] = useState<UploadedFile[]>([])
+  const [showCameraModal, setShowCameraModal] = useState(false)
   const [measuredValue, setMeasuredValue] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  const handleCameraCapture = (file: File) => {
+    const validation = validateImageFile(file)
+    setFiles((prev) => [
+      ...prev,
+      {
+        file,
+        preview: URL.createObjectURL(file),
+        error: validation.error,
+      },
+    ].slice(0, 5))
+    toast({ title: 'Photo captured! 📸', description: 'Photo taken directly in memory (not saved to gallery).' })
+  }
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -413,43 +428,52 @@ export function SubmitProofPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Photo upload */}
+        {/* Photo upload section */}
         <div className="space-y-3">
-          <label className="text-sm font-medium">
-            Photos (required) · {files.length}/5
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">
+              Proof Photo (required) · {files.length}/5
+            </label>
+            <span className="font-mono text-[10px] text-cinnabar-600 dark:text-cinnabar-400 font-semibold">
+              LIVE CAPTURE READY
+            </span>
+          </div>
 
+          {/* Primary Action: Direct Live In-App Camera (NOT saved to phone gallery) */}
+          <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-3">
+            <Button
+              type="button"
+              variant="cinnabar"
+              size="lg"
+              className="w-full gap-2 font-cinzel text-xs uppercase tracking-wider shadow-md h-12"
+              onClick={() => setShowCameraModal(true)}
+            >
+              <Camera className="h-5 w-5" />
+              <span>Take Photo With Live Camera</span>
+            </Button>
+            <p className="font-mono text-[11px] text-center text-muted-foreground">
+              ✦ Captures in-memory directly to proof · Never saved to your phone's photo gallery
+            </p>
+          </div>
+
+          {/* Secondary Option: Drag & Drop or Gallery Picker */}
           <div
             {...getRootProps()}
-            className={`upload-zone ${isDragActive ? 'upload-zone-active' : ''}`}
+            className={`upload-zone py-4 ${isDragActive ? 'upload-zone-active' : ''}`}
           >
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center gap-3 text-center p-6">
-              <div className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-colors ${
-                isDragActive ? 'bg-primary/20' : 'bg-muted'
-              }`}>
-                {isDragActive ? (
-                  <Upload className="h-6 w-6 text-primary" />
-                ) : (
-                  <Camera className="h-6 w-6 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-sm">
-                  {isDragActive ? 'Drop photos here' : 'Drag & drop or tap to upload'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  JPEG, PNG, WebP, HEIC · Max 10MB each · Up to 5 photos
-                </p>
-              </div>
-              {!isDragActive && (
-                <Button type="button" variant="outline" size="sm">
-                  <Image className="h-3.5 w-3.5 mr-1.5" />
-                  Choose Photos
-                </Button>
-              )}
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground p-3">
+              <Image className="h-4 w-4" />
+              <span>Or click here to choose photo from device gallery</span>
             </div>
           </div>
+
+          {/* Live Camera Modal */}
+          <LiveCameraCapture
+            isOpen={showCameraModal}
+            onClose={() => setShowCameraModal(false)}
+            onCapture={handleCameraCapture}
+          />
 
           {/* Preview grid */}
           {files.length > 0 && (
