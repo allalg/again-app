@@ -1,0 +1,449 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Vintage Archival Paper / Editorial Art Gazette Palette */
+    --background: 38 28% 93%; /* #f4eee4 - Warm aged parchment */
+    --foreground: 24 14% 13%; /* #221d19 - Deep archival charcoal ink */
+    --card: 38 25% 97%; /* #faf6ef - Ivory handmade deckle paper */
+    --card-foreground: 24 14% 13%;
+    --popover: 38 25% 97%;
+    --popover-foreground: 24 14% 13%;
+    
+    /* Primary: Sanguine / Cinnabar Terracotta (from the etched hand artwork) */
+    --primary: 10 58% 48%; /* #c24b38 */
+    --primary-foreground: 38 25% 97%;
+    
+    /* Secondary & Muted: Aged book paper tones */
+    --secondary: 38 18% 88%; /* #e8dfce */
+    --secondary-foreground: 24 14% 18%;
+    --muted: 38 16% 89%; /* #ebe3d4 */
+    --muted-foreground: 25 10% 45%; /* #797167 */
+    --accent: 38 22% 87%; /* #e4d9c6 */
+    --accent-foreground: 24 14% 13%;
+    
+    /* Semantic / Accents */
+    --destructive: 10 65% 45%; /* #be3821 */
+    --destructive-foreground: 38 25% 97%;
+    
+    /* Hairline borders like vintage copperplate engravings */
+    --border: 35 16% 82%; /* #d5cbbe */
+    --input: 35 16% 82%;
+    --ring: 10 58% 48%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Nocturne Gallery / Dark Archival Atelier */
+    --background: 28 10% 9%; /* #191715 - Obsidian charcoal ink */
+    --foreground: 38 22% 91%; /* #eee7db - Warm parchment text */
+    --card: 28 8% 13%; /* #23201d - Dark exhibition canvas */
+    --card-foreground: 38 22% 91%;
+    --popover: 28 8% 13%;
+    --popover-foreground: 38 22% 91%;
+    
+    --primary: 10 58% 54%; /* #d25a47 - Luminous cinnabar */
+    --primary-foreground: 28 10% 9%;
+    
+    --secondary: 28 8% 18%; /* #312c27 */
+    --secondary-foreground: 38 22% 91%;
+    --muted: 28 8% 16%; /* #2b2723 */
+    --muted-foreground: 35 10% 64%; /* #aba396 */
+    --accent: 28 8% 20%; /* #38322c */
+    --accent-foreground: 38 22% 91%;
+    
+    --destructive: 10 65% 52%; /* #d44a33 */
+    --destructive-foreground: 38 22% 91%;
+    
+    --border: 28 8% 22%; /* #3d3731 */
+    --input: 28 8% 22%;
+    --ring: 10 58% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "liga" 1, "calt" 1, "kern" 1;
+    background-image: 
+      radial-gradient(circle at 10% 10%, rgba(194, 75, 56, 0.02) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(61, 97, 78, 0.025) 0%, transparent 40%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.028'/%3E%3C/svg%3E");
+  }
+
+  /* Classical Headings Styling */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Mobile-first touch handling */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* Custom scrollbar matching paper & ink */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Focus visible */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+@layer components {
+  /* ==================== EDITORIAL ART GAZETTE ==================== */
+  
+  /* Delicate wireframe exhibition card */
+  .exhibition-card {
+    @apply relative rounded-xl border border-border/80 bg-card text-card-foreground
+           shadow-[0_2px_12px_rgba(34,29,25,0.04)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)]
+           transition-all duration-300 hover:border-primary/50 hover:shadow-md;
+  }
+
+  /* Classical figure label */
+  .figure-caption {
+    @apply font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground;
+  }
+
+  /* Circular Stamp Button from the artwork ("ENTER ->") */
+  .btn-circular-stamp {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full
+           border border-foreground/40 bg-transparent px-6 py-2.5
+           font-cinzel text-xs font-semibold uppercase tracking-[0.2em] text-foreground
+           transition-all duration-300 hover:border-foreground hover:bg-foreground hover:text-background
+           active:scale-95;
+  }
+
+  .stamp-badge {
+    @apply relative inline-flex items-center justify-center rounded-full
+           border border-dashed border-primary/40 px-3 py-1
+           font-cinzel text-[10px] uppercase tracking-[0.18em] text-primary;
+  }
+
+  /* Inset Picture Frame Syllable Break */
+  .editorial-frame {
+    @apply relative inline-flex items-center justify-center overflow-hidden
+           border border-foreground/20 bg-muted/50 p-1 align-middle;
+  }
+
+  /* ==================== GLASS / PARCHMENT MORPHISM ==================== */
+  .glass {
+    @apply backdrop-blur-md bg-card/70 border border-border/60;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl bg-card/85 border border-border/70 shadow-sm;
+  }
+
+  /* ==================== GRADIENT & EDITORIAL TEXT ==================== */
+  .gradient-text {
+    @apply bg-gradient-to-r from-cinnabar-500 to-cinnabar-700 dark:from-cinnabar-400 dark:to-gilt-400 bg-clip-text text-transparent font-serif;
+  }
+
+  .gradient-text-ember {
+    @apply bg-gradient-to-r from-cinnabar-500 to-gilt-500 bg-clip-text text-transparent;
+  }
+
+  .gradient-text-jade {
+    @apply bg-gradient-to-r from-botanical-500 to-botanical-700 bg-clip-text text-transparent;
+  }
+
+  .editorial-headline {
+    @apply font-serif tracking-tight leading-[1.08] text-foreground;
+  }
+
+  .editorial-subhead {
+    @apply font-cinzel text-xs uppercase tracking-[0.25em] text-muted-foreground font-medium;
+  }
+
+  /* ==================== BUTTONS ==================== */
+  .btn-streak, .btn-cinnabar {
+    @apply bg-cinnabar-500 text-white font-medium px-6 py-2.5 rounded-lg
+           border border-cinnabar-600/50
+           shadow-[0_4px_16px_rgba(194,75,56,0.25)] 
+           hover:bg-cinnabar-600 hover:shadow-[0_6px_20px_rgba(194,75,56,0.35)]
+           active:scale-95 transition-all duration-200;
+  }
+
+  .btn-botanical {
+    @apply bg-botanical-500 text-white font-medium px-6 py-2.5 rounded-lg
+           border border-botanical-600/50
+           shadow-[0_4px_16px_rgba(61,97,78,0.25)]
+           hover:bg-botanical-600 hover:shadow-[0_6px_20px_rgba(61,97,78,0.35)]
+           active:scale-95 transition-all duration-200;
+  }
+
+  .btn-gilt {
+    @apply bg-gilt-500 text-ink-900 font-medium px-6 py-2.5 rounded-lg
+           border border-gilt-600/50
+           shadow-[0_4px_16px_rgba(194,147,54,0.25)]
+           hover:bg-gilt-400 hover:shadow-[0_6px_20px_rgba(194,147,54,0.35)]
+           active:scale-95 transition-all duration-200;
+  }
+
+  .btn-ember {
+    @apply bg-cinnabar-500 text-white font-medium px-6 py-2.5 rounded-lg
+           shadow-[0_4px_16px_rgba(194,75,56,0.25)]
+           hover:bg-cinnabar-600 active:scale-95 transition-all duration-200;
+  }
+
+  .btn-outline-editorial {
+    @apply border border-border/90 bg-card/60 text-foreground px-5 py-2 rounded-lg
+           hover:bg-accent hover:border-foreground/30 active:scale-95 transition-all duration-200;
+  }
+
+  /* ==================== CARDS ==================== */
+  .challenge-card {
+    @apply relative overflow-hidden rounded-xl border border-border/80 bg-card text-card-foreground
+           shadow-[0_2px_8px_rgba(34,29,25,0.04)] dark:shadow-none
+           hover:shadow-[0_8px_24px_rgba(34,29,25,0.08)] hover:border-primary/40
+           transition-all duration-300 hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  .stat-card {
+    @apply rounded-xl border border-border/80 bg-card p-4 flex flex-col gap-1
+           hover:border-primary/40 transition-colors duration-200;
+  }
+
+  /* ==================== STATUS BADGES ==================== */
+  .status-completed {
+    @apply bg-botanical-500/10 text-botanical-700 dark:text-botanical-300 border border-botanical-500/30;
+  }
+
+  .status-missed {
+    @apply bg-cinnabar-500/10 text-cinnabar-700 dark:text-cinnabar-300 border border-cinnabar-500/30;
+  }
+
+  .status-pending {
+    @apply bg-gilt-500/10 text-gilt-700 dark:text-gilt-300 border border-gilt-500/30;
+  }
+
+  .status-submitted {
+    @apply bg-stone-500/10 text-stone-700 dark:text-stone-300 border border-stone-500/30;
+  }
+
+  .status-disputed {
+    @apply bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30;
+  }
+
+  .status-excused {
+    @apply bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 border border-zinc-500/30;
+  }
+
+  /* ==================== STREAK FLAME ==================== */
+  .streak-flame {
+    @apply relative inline-flex items-center justify-center;
+    filter: drop-shadow(0 0 6px rgba(194, 75, 56, 0.4));
+  }
+
+  /* ==================== CALENDAR ==================== */
+  .calendar-day {
+    @apply relative flex items-center justify-center rounded-md w-8 h-8 
+           text-xs font-mono transition-all duration-150 cursor-pointer
+           border border-border/60 hover:ring-1 hover:ring-primary;
+  }
+
+  .calendar-day-completed {
+    @apply bg-botanical-500 text-white border-botanical-600 shadow-[0_1px_4px_rgba(61,97,78,0.4)];
+  }
+
+  .calendar-day-missed {
+    @apply bg-cinnabar-500 text-white border-cinnabar-600;
+  }
+
+  .calendar-day-pending {
+    @apply bg-gilt-500/15 text-gilt-700 dark:text-gilt-300 border border-gilt-500/40;
+  }
+
+  .calendar-day-excused {
+    @apply bg-stone-500/20 text-stone-700 dark:text-stone-300 border-stone-400/30;
+  }
+
+  .calendar-day-today {
+    @apply ring-2 ring-primary ring-offset-1 ring-offset-background font-bold;
+  }
+
+  /* ==================== CHAT ==================== */
+  .chat-bubble-own {
+    @apply bg-cinnabar-500 text-white rounded-lg rounded-tr-none px-4 py-2.5 text-sm shadow-sm;
+  }
+
+  .chat-bubble-other {
+    @apply bg-card border border-border rounded-lg rounded-tl-none px-4 py-2.5 text-sm shadow-sm;
+  }
+
+  /* ==================== PROGRESS ==================== */
+  .progress-streak {
+    @apply h-2 rounded-full bg-gradient-to-r from-cinnabar-500 to-gilt-500 transition-all duration-700;
+  }
+
+  /* ==================== SHIMMER SKELETON ==================== */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted/60 rounded-md;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  /* ==================== LAYOUT ==================== */
+  .page-container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-title {
+    @apply text-2xl font-serif font-semibold tracking-tight;
+  }
+
+  /* ==================== NAVIGATION ==================== */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+           text-muted-foreground hover:text-foreground hover:bg-accent/60
+           transition-all duration-150 font-sans;
+  }
+
+  .nav-item-active {
+    @apply text-foreground bg-accent/80 font-semibold border-l-2 border-primary rounded-l-none;
+  }
+
+  /* ==================== PENALTY LEDGER ==================== */
+  .penalty-row {
+    @apply flex items-center gap-3 p-3 rounded-lg bg-cinnabar-500/5 border border-cinnabar-500/15
+           hover:border-cinnabar-500/30 transition-colors duration-150;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+      linear-gradient(135deg, #c24b38, #c29336) border-box;
+    border: 1px solid transparent;
+  }
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ==================== MOBILE BOTTOM NAV ==================== */
+.bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around
+         bg-card/95 backdrop-blur-xl border-t border-border pb-safe;
+  height: calc(60px + env(safe-area-inset-bottom, 0));
+}
+
+.bottom-nav-item {
+  @apply flex flex-col items-center justify-center gap-1 flex-1 h-full
+         text-muted-foreground transition-colors duration-150;
+}
+
+.bottom-nav-item-active {
+  @apply text-primary font-semibold;
+}
+
+/* ==================== PHOTO UPLOAD ZONE ==================== */
+.upload-zone {
+  @apply relative flex flex-col items-center justify-center min-h-[200px]
+         rounded-xl border border-dashed border-border
+         bg-card/40 hover:bg-card/80 hover:border-primary
+         transition-all duration-200 cursor-pointer;
+}
+
+.upload-zone-active {
+  @apply border-primary bg-primary/5 shadow-[0_0_20px_rgba(194,75,56,0.15)];
+}
+
+/* ==================== LEADERBOARD ==================== */
+.leaderboard-rank-1 {
+  @apply from-gilt-400 to-gilt-600;
+}
+
+.leaderboard-rank-2 {
+  @apply from-stone-300 to-stone-400;
+}
+
+.leaderboard-rank-3 {
+  @apply from-cinnabar-600 to-cinnabar-700;
+}

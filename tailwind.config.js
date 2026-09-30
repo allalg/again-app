@@ -1,0 +1,217 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ['class'],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
+  prefix: '',
+  theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
+    extend: {
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        // STREAKPACT brand colors - Vintage Editorial & Classical Renaissance Palette
+        cinnabar: {
+          50: '#fdf4f2',
+          100: '#fae7e4',
+          200: '#f6d1cc',
+          300: '#efb0a7',
+          400: '#e48273',
+          500: '#c24b38', // signature terracotta/sanguine red
+          600: '#af3927',
+          700: '#922d1e',
+          800: '#79281c',
+          900: '#65251c',
+        },
+        botanical: {
+          50: '#f3f7f4',
+          100: '#e4eee6',
+          200: '#ccded0',
+          300: '#a7c6af',
+          400: '#7aa686',
+          500: '#3d614e', // signature etching leaf green
+          600: '#2e4a3b',
+          700: '#253c30',
+          800: '#1f3128',
+          900: '#1b2922',
+        },
+        gilt: {
+          50: '#fbf8ee',
+          100: '#f6eed6',
+          200: '#ecdcad',
+          300: '#dec37b',
+          400: '#d1a84f',
+          500: '#c29336', // antique museum gold
+          600: '#a7762a',
+          700: '#845724',
+          800: '#6e4723',
+          900: '#5c3c21',
+        },
+        parchment: {
+          50: '#faf7f2',
+          100: '#f4efe5',
+          200: '#ebe3d2',
+          300: '#ded2bb',
+          400: '#ccbc9e',
+          500: '#b8a383',
+          600: '#9e8969',
+          700: '#7e6c53',
+          800: '#675845',
+          900: '#55493b',
+        },
+        ink: {
+          50: '#f6f6f6',
+          100: '#e7e7e6',
+          200: '#cfcecc',
+          300: '#afaca9',
+          400: '#87837e',
+          500: '#6a6661',
+          600: '#534f4b',
+          700: '#43403c',
+          800: '#2b2926',
+          900: '#171614', // deep archival charcoal ink
+          950: '#0d0d0c',
+        },
+        // Maintained for backward compatibility, mapped to antique palette
+        streak: {
+          50: '#fbf8ee',
+          100: '#f6eed6',
+          200: '#ecdcad',
+          300: '#c24b38',
+          400: '#af3927',
+          500: '#c24b38',
+          600: '#922d1e',
+          700: '#79281c',
+          800: '#2b2926',
+          900: '#171614',
+        },
+        ember: {
+          50: '#fdf4f2',
+          100: '#fae7e4',
+          200: '#f6d1cc',
+          300: '#efb0a7',
+          400: '#e48273',
+          500: '#c24b38',
+          600: '#af3927',
+          700: '#922d1e',
+          800: '#79281c',
+          900: '#65251c',
+        },
+        jade: {
+          50: '#f3f7f4',
+          100: '#e4eee6',
+          200: '#ccded0',
+          300: '#a7c6af',
+          400: '#7aa686',
+          500: '#3d614e',
+          600: '#2e4a3b',
+          700: '#253c30',
+          800: '#1f3128',
+          900: '#1b2922',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+      keyframes: {
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
+        'fade-in': {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in-right': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
+        'pulse-ring': {
+          '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(194, 75, 56, 0.7)' },
+          '70%': { transform: 'scale(1)', boxShadow: '0 0 0 10px rgba(194, 75, 56, 0)' },
+          '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(194, 75, 56, 0)' },
+        },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'streak-glow': {
+          '0%, 100%': { boxShadow: '0 0 20px rgba(194, 155, 65, 0.3)' },
+          '50%': { boxShadow: '0 0 40px rgba(194, 155, 65, 0.6)' },
+        },
+      },
+      animation: {
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'slide-in-right': 'slide-in-right 0.3s ease-out',
+        'pulse-ring': 'pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
+        shimmer: 'shimmer 2s infinite',
+        'streak-glow': 'streak-glow 3s ease-in-out infinite',
+      },
+      fontFamily: {
+        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        cinzel: ['"Cinzel"', 'serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-streak': 'linear-gradient(135deg, #c24b38, #8c2a1a)',
+        'gradient-cinnabar': 'linear-gradient(135deg, #c24b38, #8c2a1a)',
+        'gradient-botanical': 'linear-gradient(135deg, #3d614e, #203529)',
+        'gradient-gilt': 'linear-gradient(135deg, #c29336, #8f651c)',
+        'gradient-ember': 'linear-gradient(135deg, #c24b38, #c29336)',
+        'gradient-jade': 'linear-gradient(135deg, #3d614e, #5a8a6f)',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+}

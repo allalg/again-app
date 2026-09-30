@@ -1,0 +1,66 @@
+{
+  "$schema": "https://openapi.supabase.com/schemas/config/v2",
+  "project_id": "YOUR_PROJECT_REF",
+  "db": {
+    "port": 54322,
+    "shadow_port": 54320
+  },
+  "api": {
+    "port": 54321,
+    "schemas": ["public", "storage"],
+    "extra_search_path": ["public", "extensions"]
+  },
+  "auth": {
+    "site_url": "http://localhost:5173",
+    "additional_redirect_urls": [
+      "http://localhost:5173",
+      "https://your-app.vercel.app"
+    ],
+    "jwt_expiry": 3600,
+    "enable_signup": true,
+    "external": {
+      "google": {
+        "enabled": true,
+        "client_id": "",
+        "secret": ""
+      }
+    }
+  },
+  "storage": {
+    "buckets": {
+      "proof-photos": {
+        "public": false,
+        "file_size_limit": "10MB",
+        "allowed_mime_types": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/heic"
+        ]
+      },
+      "user-content": {
+        "public": true,
+        "file_size_limit": "5MB",
+        "allowed_mime_types": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif"
+        ]
+      }
+    }
+  },
+  "edge_runtime": {
+    "policy": "per_worker"
+  },
+  "functions": {
+    "evaluate-daily-deadlines": {
+      "verify_jwt": false,
+      "schedule": "0 * * * *"
+    },
+    "send-deadline-reminders": {
+      "verify_jwt": false,
+      "schedule": "*/30 * * * *"
+    }
+  }
+}
