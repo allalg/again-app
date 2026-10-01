@@ -21,11 +21,13 @@ BEGIN
       current_streak = current_streak + 1,
       longest_streak = GREATEST(longest_streak, current_streak + 1),
       total_completed_days = total_completed_days + 1,
-      last_activity_at = NOW()
+      updated_at = NOW()
     WHERE challenge_id = p_challenge_id AND user_id = p_user_id;
   ELSE
     UPDATE challenge_participants
-    SET current_streak = 0
+    SET
+      current_streak = 0,
+      updated_at = NOW()
     WHERE challenge_id = p_challenge_id AND user_id = p_user_id;
   END IF;
 END;

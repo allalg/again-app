@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/Progress'
 import { toast } from '@/components/ui/Toaster'
 import { LiveCameraCapture } from '@/components/ui/LiveCameraCapture'
 import { validateImageFile, generateStoragePath, formatDeadline, isDeadlinePast } from '@/lib/utils'
+import { syncParticipantStreak } from '@/lib/streak'
 
 interface UploadedFile {
   file: File
@@ -246,37 +247,23 @@ export function SubmitProofPage() {
         })
         .eq('id', recordId)
 
-      // 5. Update participant streak & stats if review not required and wasn't already completed today
-      if (meetsTarget && !challenge.proof_review_required && !isCompleted) {
+      // 5. Update participant streak & stats
+      if (meetsTarget && !challenge.proof_review_required) {
         try {
-          await supabase.rpc('update_participant_streak', {
+          // Attempt database RPC if available
+          const { error: rpcErr } = await supabase.rpc('update_participant_streak', {
             p_challenge_id: id!,
             p_user_id: user.id,
             p_completed: true,
           })
-        } catch {
-          // Fallback manual streak calculation
-          const { data: p } = await supabase
-            .from('challenge_participants')
-            .select('current_streak, longest_streak, total_completed_days')
-            .eq('challenge_id', id!)
-            .eq('user_id', user.id)
-            .single()
-
-          if (p) {
-            const nextStreak = (p.current_streak || 0) + 1
-            await supabase
-              .from('challenge_participants')
-              .update({
-                current_streak: nextStreak,
-                longest_streak: Math.max(p.longest_streak || 0, nextStreak),
-                total_completed_days: (p.total_completed_days || 0) + 1,
-                last_activity_at: new Date().toISOString(),
-              })
-              .eq('challenge_id', id!)
-              .eq('user_id', user.id)
+          if (rpcErr) {
+            console.warn('RPC update_participant_streak failed, falling back to sync:', rpcErr.message)
           }
+        } catch {
+          // Ignore RPC exception
         }
+        // Always run syncParticipantStreak to ensure accurate counts from daily records
+        await syncParticipantStreak(id!, user.id)
       }
 
       // 6. Notify challenge peers that proof was submitted for review

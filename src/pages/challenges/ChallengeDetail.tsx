@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Camera, MessageCircle, Trophy, Calendar,
   DollarSign, Users, Settings, Play, Pause, CheckCircle2,
@@ -19,6 +19,7 @@ import {
   formatDate, formatCurrency, getDaysRemaining, calculateCompletionRate,
   getGradientForCategory, getCategoryEmoji, getDayLabel, cn
 } from '@/lib/utils'
+import { syncParticipantStreak } from '@/lib/streak'
 import type { ChallengeWithParticipants, DailyStatus } from '@/lib/database.types'
 
 export function ChallengeDetailPage() {
@@ -35,6 +36,17 @@ export function ChallengeDetailPage() {
   const [rejectReasonPreset, setRejectReasonPreset] = useState('')
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState(0)
+
+  // Auto-sync user streak if desynced or freshly completed
+  useEffect(() => {
+    if (!id || !user?.id) return
+    syncParticipantStreak(id, user.id).then((stats) => {
+      if (stats) {
+        queryClient.invalidateQueries({ queryKey: ['challenge', id] })
+        queryClient.invalidateQueries({ queryKey: ['dashboard-challenges'] })
+      }
+    })
+  }, [id, user?.id, queryClient])
 
   const getProofPhotoUrl = (path: string) => {
     if (!path) return ''
@@ -701,7 +713,7 @@ export function ChallengeDetailPage() {
                         {isMe && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">You</span>}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        🔥 {participant.current_streak} day streak · ✅ {participant.total_completed_days} completed
+                        🔥 {Math.max(participant.current_streak || 0, record?.status === 'completed' ? 1 : 0)} day streak · ✅ {Math.max(participant.total_completed_days || 0, record?.status === 'completed' ? 1 : 0)} completed
                         {submissionsList.length > 0 && (
                           <span className="font-semibold text-foreground">
                             {` · ${totalLogged} / ${challenge.daily_target_value} ${challenge.daily_target_unit}`}
@@ -758,32 +770,39 @@ export function ChallengeDetailPage() {
           </div>
 
           {/* My stats */}
-          {myParticipant && (
-            <div className="rounded-xl bg-gradient-to-br from-streak-500/10 to-blue-500/10 border border-streak-500/20 p-4 space-y-3">
-              <h3 className="font-semibold text-sm">My Stats</h3>
-              <div className="grid grid-cols-4 gap-3 text-center">
-                {[
-                  { label: 'Current Streak', value: `🔥 ${myParticipant.current_streak}` },
-                  { label: 'Best Streak', value: `⚡ ${myParticipant.longest_streak}` },
-                  { label: 'Completed', value: `✅ ${myParticipant.total_completed_days}` },
-                  { label: 'Missed', value: `❌ ${myParticipant.total_missed_days}` },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <div className="text-sm font-bold">{value}</div>
-                    <div className="text-[10px] text-muted-foreground">{label}</div>
-                  </div>
-                ))}
-              </div>
-              {myParticipant.total_penalties_owed > 0 && (
-                <div className="flex items-center justify-between text-sm border-t border-border/50 pt-2">
-                  <span className="text-muted-foreground">Penalties owed</span>
-                  <span className="font-bold text-red-500">
-                    {formatCurrency(myParticipant.total_penalties_owed, challenge.currency)}
-                  </span>
+          {myParticipant && (() => {
+            const isTodayDone = myRecord?.status === 'completed'
+            const currentStreak = Math.max(myParticipant.current_streak || 0, isTodayDone ? 1 : 0)
+            const longestStreak = Math.max(myParticipant.longest_streak || 0, currentStreak)
+            const totalCompleted = Math.max(myParticipant.total_completed_days || 0, isTodayDone ? 1 : 0)
+
+            return (
+              <div className="rounded-xl bg-gradient-to-br from-streak-500/10 to-blue-500/10 border border-streak-500/20 p-4 space-y-3">
+                <h3 className="font-semibold text-sm">My Stats</h3>
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  {[
+                    { label: 'Current Streak', value: `🔥 ${currentStreak}` },
+                    { label: 'Best Streak', value: `⚡ ${longestStreak}` },
+                    { label: 'Completed', value: `✅ ${totalCompleted}` },
+                    { label: 'Missed', value: `❌ ${myParticipant.total_missed_days}` },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div className="text-sm font-bold">{value}</div>
+                      <div className="text-[10px] text-muted-foreground">{label}</div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
+                {myParticipant.total_penalties_owed > 0 && (
+                  <div className="flex items-center justify-between text-sm border-t border-border/50 pt-2">
+                    <span className="text-muted-foreground">Penalties owed</span>
+                    <span className="font-bold text-red-500">
+                      {formatCurrency(myParticipant.total_penalties_owed, challenge.currency)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 

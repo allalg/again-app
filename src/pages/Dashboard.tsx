@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -18,6 +19,7 @@ import {
   formatDate, formatCurrency, getDaysRemaining, calculateCompletionRate,
   getGradientForCategory, getCategoryEmoji, getDayLabel, isDeadlinePast, cn
 } from '@/lib/utils'
+import { syncParticipantStreak } from '@/lib/streak'
 import type { Challenge, ChallengeParticipant, DailyChallengeRecord } from '@/lib/database.types'
 
 interface DashboardChallenge extends Challenge {
@@ -104,7 +106,11 @@ export function DashboardPage() {
   // Aggregate stats
   const stats = {
     activeChallenges: challenges?.length ?? 0,
-    currentStreak: challenges?.reduce((max, c) => Math.max(max, c.my_participant.current_streak), 0) ?? 0,
+    currentStreak: challenges?.reduce((max, c) => {
+      const pStreak = c.my_participant?.current_streak || 0
+      const isDone = c.today_record?.status === 'completed'
+      return Math.max(max, isDone && pStreak === 0 ? 1 : pStreak)
+    }, 0) ?? 0,
     completionRate: challenges?.length
       ? Math.round(
           challenges.reduce((sum, c) => {
@@ -117,6 +123,19 @@ export function DashboardPage() {
   }
 
   const queryClient = useQueryClient()
+
+  // Background sync for any challenge where today is completed but streak in DB is 0
+  useEffect(() => {
+    if (!challenges || !user?.id) return
+    const desynced = challenges.filter(
+      (c) => c.today_record?.status === 'completed' && (c.my_participant?.current_streak || 0) === 0
+    )
+    if (desynced.length > 0) {
+      Promise.all(desynced.map((c) => syncParticipantStreak(c.id, user.id))).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-challenges', user.id] })
+      })
+    }
+  }, [challenges, user?.id, queryClient])
 
   // Fetch pending invitations for current user
   const { data: pendingInvites, refetch: refetchPendingInvites } = useQuery({
@@ -503,7 +522,7 @@ function ChallengeCard({ challenge }: { challenge: DashboardChallenge }) {
         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
           <div className="text-center">
             <div className="font-serif text-base font-bold text-foreground">
-              {challenge.my_participant.current_streak} D
+              {Math.max(challenge.my_participant.current_streak || 0, challenge.today_record?.status === 'completed' ? 1 : 0)} D
             </div>
             <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Streak</div>
           </div>
