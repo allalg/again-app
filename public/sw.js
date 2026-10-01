@@ -1,9 +1,9 @@
-const CACHE_NAME = 'streakpact-v1'
+const CACHE_NAME = 'streakpact-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg'
+  '/favicon.png'
 ]
 
 // Service Worker Installation
