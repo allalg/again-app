@@ -19,7 +19,7 @@ import {
   formatDate, formatCurrency, getDaysRemaining, calculateCompletionRate,
   getGradientForCategory, getCategoryEmoji, getDayLabel, cn
 } from '@/lib/utils'
-import { syncParticipantStreak } from '@/lib/streak'
+import { syncParticipantStreak, calculateStreakFromRecords } from '@/lib/streak'
 import type { ChallengeWithParticipants, DailyStatus } from '@/lib/database.types'
 
 export function ChallengeDetailPage() {
@@ -127,6 +127,18 @@ export function ChallengeDetailPage() {
         .eq('challenge_id', id!)
         .order('challenge_day', { ascending: false })
         .limit(30)
+      return data ?? []
+    },
+    enabled: !!id,
+  })
+
+  const { data: allChallengeRecords } = useQuery({
+    queryKey: ['all-challenge-records', id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('daily_challenge_records')
+        .select('user_id, challenge_day, status')
+        .eq('challenge_id', id!)
       return data ?? []
     },
     enabled: !!id,
@@ -361,8 +373,12 @@ export function ChallengeDetailPage() {
 
   const myRejectionReason = latestRejectionReview?.reason
 
-  const daysRemaining = challenge ? getDaysRemaining(challenge.end_date) : 0
-  const daysElapsed = challenge ? challenge.duration_days - daysRemaining : 0
+  const todayDate = new Date().toISOString().split('T')[0]
+  const start = challenge ? new Date(challenge.start_date || todayDate) : new Date(todayDate)
+  const now = new Date(todayDate)
+  const dayDiff = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  const daysElapsed = challenge ? Math.max(1, dayDiff + 1) : 0
+  const daysRemaining = challenge ? Math.max(0, challenge.duration_days - daysElapsed) : 0
   const overallProgress = challenge ? calculateCompletionRate(daysElapsed, challenge.duration_days) : 0
 
   const [isResponding, setIsResponding] = useState(false)
@@ -700,6 +716,12 @@ export function ChallengeDetailPage() {
                 const activeSubmission = submissionsList[submissionsList.length - 1] || submissionsList[0]
                 const isMe = participant.user_id === user?.id
 
+                const participantRecords = allChallengeRecords?.filter((r) => r.user_id === participant.user_id) || []
+                const pStats = calculateStreakFromRecords(participantRecords)
+                const isTodayDone = record?.status === 'completed'
+                const displayStreak = Math.max(participant.current_streak || 0, pStats.currentStreak, isTodayDone ? 1 : 0)
+                const displayCompleted = Math.max(participant.total_completed_days || 0, pStats.totalCompleted, isTodayDone ? 1 : 0)
+
                 return (
                   <div key={participant.id} className="flex items-center gap-3 p-3.5 rounded-xl bg-card border hover:border-border/80 transition-all">
                     <UserAvatar
@@ -713,7 +735,7 @@ export function ChallengeDetailPage() {
                         {isMe && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">You</span>}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        🔥 {Math.max(participant.current_streak || 0, record?.status === 'completed' ? 1 : 0)} day streak · ✅ {Math.max(participant.total_completed_days || 0, record?.status === 'completed' ? 1 : 0)} completed
+                        🔥 {displayStreak} day streak · ✅ {displayCompleted} completed
                         {submissionsList.length > 0 && (
                           <span className="font-semibold text-foreground">
                             {` · ${totalLogged} / ${challenge.daily_target_value} ${challenge.daily_target_unit}`}
@@ -810,9 +832,14 @@ export function ChallengeDetailPage() {
         <div className="space-y-3">
           {challenge.participants?.map((participant) => {
             const profile = participant.profile as any
+            const pRecords = allChallengeRecords?.filter((r) => r.user_id === participant.user_id) || []
+            const pStats = calculateStreakFromRecords(pRecords)
+            const currentStreak = Math.max(participant.current_streak || 0, pStats.currentStreak)
+            const completedDays = Math.max(participant.total_completed_days || 0, pStats.totalCompleted)
+            const missedDays = Math.max(participant.total_missed_days || 0, pStats.totalMissed)
             const completionRate = calculateCompletionRate(
-              participant.total_completed_days,
-              Math.max(1, participant.total_completed_days + participant.total_missed_days)
+              completedDays,
+              Math.max(1, completedDays + missedDays)
             )
             return (
               <div key={participant.id} className="flex items-center gap-4 p-4 rounded-xl bg-card border">
@@ -839,7 +866,7 @@ export function ChallengeDetailPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-xl">🔥</div>
-                  <div className="text-sm font-bold">{participant.current_streak}</div>
+                  <div className="text-sm font-bold">{currentStreak}</div>
                   <div className="text-xs text-muted-foreground">streak</div>
                 </div>
               </div>

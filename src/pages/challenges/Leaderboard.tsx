@@ -7,11 +7,24 @@ import { UserAvatar } from '@/components/ui/Avatar'
 import { Progress } from '@/components/ui/Progress'
 import { Badge } from '@/components/ui/Badge'
 import { calculateCompletionRate, formatCurrency } from '@/lib/utils'
+import { calculateStreakFromRecords } from '@/lib/streak'
 
 export function LeaderboardPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
   const navigate = useNavigate()
+
+  const { data: allRecords } = useQuery({
+    queryKey: ['leaderboard-records', id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('daily_challenge_records')
+        .select('user_id, challenge_day, status')
+        .eq('challenge_id', id!)
+      return data ?? []
+    },
+    enabled: !!id,
+  })
 
   const { data: leaderboard, isLoading } = useQuery({
     queryKey: ['leaderboard', id],
@@ -71,9 +84,14 @@ export function LeaderboardPage() {
             const rank = index + 1
             const profile = participant.profile as any
             const isMe = participant.user_id === user?.id
-            const total = participant.total_completed_days + participant.total_missed_days
-            const completionRate = calculateCompletionRate(participant.total_completed_days, Math.max(total, 1))
-            const barWidth = Math.round((participant.total_completed_days / maxCompleted) * 100)
+            const pRecords = allRecords?.filter((r) => r.user_id === participant.user_id) || []
+            const pStats = calculateStreakFromRecords(pRecords)
+            const streak = Math.max(participant.current_streak || 0, pStats.currentStreak)
+            const completedDays = Math.max(participant.total_completed_days || 0, pStats.totalCompleted)
+            const missedDays = Math.max(participant.total_missed_days || 0, pStats.totalMissed)
+            const total = completedDays + missedDays
+            const completionRate = calculateCompletionRate(completedDays, Math.max(total, 1))
+            const barWidth = Math.round((completedDays / maxCompleted) * 100)
 
             return (
               <div
@@ -109,8 +127,8 @@ export function LeaderboardPage() {
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                    <span>🔥 {participant.current_streak} streak</span>
-                    <span>✅ {participant.total_completed_days} days</span>
+                    <span>🔥 {streak} streak</span>
+                    <span>✅ {completedDays} days</span>
                     <span>📈 {completionRate}%</span>
                   </div>
 

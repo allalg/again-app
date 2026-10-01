@@ -137,6 +137,31 @@ export function DashboardPage() {
     }
   }, [challenges, user?.id, queryClient])
 
+  // Poll for midnight crossover to refresh dashboard and trigger daily evaluation
+  useEffect(() => {
+    let lastDay = new Date().toISOString().split('T')[0]
+    
+    const interval = setInterval(async () => {
+      const currentDay = new Date().toISOString().split('T')[0]
+      if (currentDay !== lastDay) {
+        lastDay = currentDay
+        
+        // Invalidate queries so UI updates for the new day
+        queryClient.invalidateQueries({ queryKey: ['dashboard-challenges'] })
+        queryClient.invalidateQueries({ queryKey: ['my-penalties'] })
+        
+        // Trigger the edge function to process missed days/penalties
+        try {
+          await supabase.functions.invoke('evaluate-daily-deadlines')
+        } catch (e) {
+          console.error('Failed to trigger daily evaluation on roll-over', e)
+        }
+      }
+    }, 60000) // check every minute
+
+    return () => clearInterval(interval)
+  }, [queryClient])
+
   // Fetch pending invitations for current user
   const { data: pendingInvites, refetch: refetchPendingInvites } = useQuery({
     queryKey: ['pending-invites', user?.id],
@@ -478,8 +503,12 @@ function TodayCard({ challenge }: { challenge: DashboardChallenge }) {
 }
 
 function ChallengeCard({ challenge }: { challenge: DashboardChallenge }) {
-  const daysRemaining = getDaysRemaining(challenge.end_date)
-  const daysElapsed = challenge.duration_days - daysRemaining
+  const todayDate = new Date().toISOString().split('T')[0]
+  const start = new Date(challenge.start_date || todayDate)
+  const now = new Date(todayDate)
+  const dayDiff = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  const daysElapsed = Math.max(1, dayDiff + 1)
+  const daysRemaining = Math.max(0, challenge.duration_days - daysElapsed)
   const progress = calculateCompletionRate(daysElapsed, challenge.duration_days)
   const completionRate = calculateCompletionRate(
     challenge.my_participant.total_completed_days,
