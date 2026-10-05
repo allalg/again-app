@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Plus, X, Info } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, X, Info, Github, Code, GitBranch, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/Button'
@@ -28,22 +28,105 @@ const ACTIVITY_CATEGORIES: { value: ActivityCategory; label: string; emoji: stri
   { value: 'custom', label: 'Custom', emoji: '✨' },
 ]
 
-const MEASUREMENT_TYPES: { value: MeasurementType; label: string; unit: string }[] = [
-  { value: 'duration_minutes', label: 'Duration (minutes)', unit: 'min' },
-  { value: 'distance_km', label: 'Distance (kilometers)', unit: 'km' },
-  { value: 'distance_miles', label: 'Distance (miles)', unit: 'mi' },
-  { value: 'count', label: 'Count / Reps', unit: 'reps' },
-  { value: 'pages', label: 'Pages', unit: 'pages' },
-  { value: 'custom', label: 'Custom Unit', unit: '' },
+export interface MeasurementOption {
+  id: string
+  value: MeasurementType
+  label: string
+  unit: string
+  icon?: string
+  badge?: string
+  description?: string
+  suggestedUnits: string[]
+}
+
+const MEASUREMENT_TYPES: MeasurementOption[] = [
+  {
+    id: 'github_repo',
+    value: 'custom',
+    label: 'GitHub / Tech Repo',
+    unit: 'repo',
+    icon: '💻',
+    badge: 'Code & Link',
+    description: 'Submit daily GitHub repo or project link proof of work',
+    suggestedUnits: ['repo', 'project', 'commit', 'PR', 'link'],
+  },
+  {
+    id: 'duration_minutes',
+    value: 'duration_minutes',
+    label: 'Duration (minutes)',
+    unit: 'min',
+    icon: '⏱️',
+    suggestedUnits: ['min', 'hrs'],
+  },
+  {
+    id: 'distance_km',
+    value: 'distance_km',
+    label: 'Distance (km)',
+    unit: 'km',
+    icon: '🏃',
+    suggestedUnits: ['km'],
+  },
+  {
+    id: 'distance_miles',
+    value: 'distance_miles',
+    label: 'Distance (miles)',
+    unit: 'mi',
+    icon: '📍',
+    suggestedUnits: ['mi'],
+  },
+  {
+    id: 'count',
+    value: 'count',
+    label: 'Count / Reps',
+    unit: 'reps',
+    icon: '🔢',
+    suggestedUnits: ['reps', 'times', 'sets'],
+  },
+  {
+    id: 'pages',
+    value: 'pages',
+    label: 'Pages',
+    unit: 'pages',
+    icon: '📖',
+    suggestedUnits: ['pages', 'chapters'],
+  },
+  {
+    id: 'custom',
+    value: 'custom',
+    label: 'Custom Unit',
+    unit: '',
+    icon: '✨',
+    suggestedUnits: ['repo', 'project', 'tasks', 'commit', 'link', 'sessions', 'hours', 'words'],
+  },
 ]
 
 const PRESET_ACTIVITIES = [
-  { name: 'Morning Run', category: 'fitness' as ActivityCategory, target: 5, unit: 'km', measurement: 'distance_km' as MeasurementType },
-  { name: 'Meditation', category: 'mindfulness' as ActivityCategory, target: 30, unit: 'min', measurement: 'duration_minutes' as MeasurementType },
-  { name: 'Reading', category: 'learning' as ActivityCategory, target: 25, unit: 'pages', measurement: 'pages' as MeasurementType },
-  { name: 'Gym Workout', category: 'fitness' as ActivityCategory, target: 60, unit: 'min', measurement: 'duration_minutes' as MeasurementType },
-  { name: 'Language Study', category: 'learning' as ActivityCategory, target: 30, unit: 'min', measurement: 'duration_minutes' as MeasurementType },
-  { name: 'Journaling', category: 'creative' as ActivityCategory, target: 15, unit: 'min', measurement: 'duration_minutes' as MeasurementType },
+  {
+    name: '10-Day Tech Project',
+    category: 'creative' as ActivityCategory,
+    target: 1,
+    unit: 'repo',
+    measurement: 'custom' as MeasurementType,
+    duration: 10,
+    measurementId: 'github_repo',
+    description: 'Build & ship 1 tech project per day with GitHub repo proof of work.',
+  },
+  {
+    name: 'Daily GitHub Commit',
+    category: 'productivity' as ActivityCategory,
+    target: 1,
+    unit: 'commit',
+    measurement: 'custom' as MeasurementType,
+    duration: 30,
+    measurementId: 'github_repo',
+    description: 'Push at least one meaningful commit to GitHub daily.',
+  },
+  { name: 'Morning Run', category: 'fitness' as ActivityCategory, target: 5, unit: 'km', measurement: 'distance_km' as MeasurementType, duration: 90, measurementId: 'distance_km' },
+  { name: 'Meditation', category: 'mindfulness' as ActivityCategory, target: 30, unit: 'min', measurement: 'duration_minutes' as MeasurementType, duration: 90, measurementId: 'duration_minutes' },
+  { name: 'Reading', category: 'learning' as ActivityCategory, target: 25, unit: 'pages', measurement: 'pages' as MeasurementType, duration: 90, measurementId: 'pages' },
+  { name: 'Gym Workout', category: 'fitness' as ActivityCategory, target: 60, unit: 'min', measurement: 'duration_minutes' as MeasurementType, duration: 90, measurementId: 'duration_minutes' },
+  { name: 'Language Study', category: 'learning' as ActivityCategory, target: 30, unit: 'min', measurement: 'duration_minutes' as MeasurementType, duration: 90, measurementId: 'duration_minutes' },
+  { name: 'Journaling', category: 'creative' as ActivityCategory, target: 15, unit: 'min', measurement: 'duration_minutes' as MeasurementType, duration: 90, measurementId: 'duration_minutes' },
 ]
 
 const schema = z.object({
@@ -80,6 +163,7 @@ const STEPS = [
 
 export function CreateChallengePage() {
   const [step, setStep] = useState(1)
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string>('duration_minutes')
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
@@ -122,12 +206,27 @@ export function CreateChallengePage() {
     setValue('daily_target_value', preset.target, { shouldValidate: true })
     setValue('daily_target_unit', preset.unit, { shouldValidate: true })
     setValue('title', `${preset.name} Challenge`, { shouldValidate: true })
+    if (preset.description) {
+      setValue('description', preset.description, { shouldValidate: true })
+    }
+    if (preset.duration) {
+      setValue('duration_days', preset.duration, { shouldValidate: true })
+    }
+    setSelectedMeasurementId(preset.measurementId || (preset.measurement === 'custom' ? 'github_repo' : preset.measurement))
   }
 
-  const applyMeasurementType = (mt: MeasurementType) => {
-    const found = MEASUREMENT_TYPES.find((m) => m.value === mt)
-    if (found && found.unit) setValue('daily_target_unit', found.unit, { shouldValidate: true })
+  const applyMeasurementOption = (option: MeasurementOption) => {
+    setSelectedMeasurementId(option.id)
+    setValue('measurement_type', option.value, { shouldValidate: true })
+    if (option.unit) {
+      setValue('daily_target_unit', option.unit, { shouldValidate: true })
+    }
+    // Auto-adjust target amount if switching to repo/commit from large numbers
+    if (option.id === 'github_repo' && (values.daily_target_value > 10 || values.daily_target_value === 30)) {
+      setValue('daily_target_value', 1, { shouldValidate: true })
+    }
   }
+
 
   const handleNextStep1 = async () => {
     const valid = await form.trigger([
@@ -448,27 +547,82 @@ export function CreateChallengePage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Daily Target</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Daily Target</span>
+                  <Badge variant="outline" className="text-xs">
+                    {values.daily_target_value || 0} {values.daily_target_unit || 'unit'} / day
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Choose how activity is measured and what proof participants provide.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Measurement Type</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {MEASUREMENT_TYPES.map((m) => (
+                    {MEASUREMENT_TYPES.map((m) => {
+                      const isSelected = selectedMeasurementId === m.id || (
+                        m.id === 'github_repo' && values.measurement_type === 'custom' && ['repo', 'commit', 'project', 'pr', 'link'].includes(values.daily_target_unit?.toLowerCase())
+                      ) || (
+                        values.measurement_type === m.value && m.id !== 'github_repo' && m.id !== 'custom'
+                      )
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => applyMeasurementOption(m)}
+                          className={`p-3 rounded-xl border text-xs text-left transition-all relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/30'
+                              : 'border-border hover:border-primary/40 bg-card'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-base">{m.icon}</span>
+                            {m.badge && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
+                                {m.badge}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-semibold leading-tight">{m.label}</span>
+                          {m.description && (
+                            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                              {m.description}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Target Unit Quick Option Suggestions */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Target Unit Options
+                    </label>
+                    <span className="text-[11px] text-muted-foreground">Click a unit or type custom below</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(MEASUREMENT_TYPES.find(m => m.id === selectedMeasurementId)?.suggestedUnits || ['repo', 'project', 'commit', 'tasks', 'pages', 'min', 'hours']).map((u) => (
                       <button
-                        key={m.value}
+                        key={u}
                         type="button"
-                        onClick={() => {
-                          setValue('measurement_type', m.value)
-                          applyMeasurementType(m.value)
-                        }}
-                        className={`px-3 py-2 rounded-xl border text-xs text-left transition-all ${
-                          values.measurement_type === m.value
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border hover:border-primary/40'
+                        onClick={() => setValue('daily_target_unit', u, { shouldValidate: true })}
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                          values.daily_target_unit === u
+                            ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                            : 'border-border/80 hover:border-primary/50 bg-accent/40 text-foreground'
                         }`}
                       >
-                        {m.label}
+                        {u === 'repo' && '💻 '}
+                        {u === 'commit' && '🔨 '}
+                        {u === 'project' && '🚀 '}
+                        {u === 'link' && '🔗 '}
+                        {u}
                       </button>
                     ))}
                   </div>
@@ -476,25 +630,58 @@ export function CreateChallengePage() {
 
                 <div className="flex gap-3">
                   <div className="flex-1 space-y-1">
-                    <label className="text-sm font-medium">Target Amount *</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Target Amount *</label>
+                      {/* Quick amount chips */}
+                      <div className="flex gap-1">
+                        {(['repo', 'project', 'commit', 'pr', 'link', 'reps'].includes(values.daily_target_unit?.toLowerCase())
+                          ? [1, 2, 3, 5]
+                          : [15, 30, 45, 60]
+                        ).map((amt) => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setValue('daily_target_value', amt, { shouldValidate: true })}
+                            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                              values.daily_target_value === amt
+                                ? 'bg-primary/20 text-primary border-primary/40 font-bold'
+                                : 'text-muted-foreground hover:text-foreground border-border'
+                            }`}
+                          >
+                            {amt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <Input
                       type="number"
-                      step="0.5"
+                      step={values.daily_target_unit === 'repo' || values.daily_target_unit === 'commit' ? '1' : '0.5'}
                       min="0.5"
-                      placeholder="30"
+                      placeholder="1"
                       error={errors.daily_target_value?.message}
                       {...form.register('daily_target_value', { valueAsNumber: true })}
                     />
                   </div>
-                  <div className="w-32 space-y-1">
+                  <div className="w-36 space-y-1">
                     <label className="text-sm font-medium">Unit *</label>
                     <Input
-                      placeholder="min"
+                      placeholder="e.g. repo, min, pages"
                       error={errors.daily_target_unit?.message}
                       {...form.register('daily_target_unit')}
                     />
                   </div>
                 </div>
+
+                {/* Helpful callout for Tech / Repo / Link unit */}
+                {(selectedMeasurementId === 'github_repo' || ['repo', 'commit', 'project', 'pr', 'link', 'code'].includes(values.daily_target_unit?.toLowerCase())) && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 flex gap-2.5 items-start text-xs text-muted-foreground">
+                    <Github className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-foreground font-semibold">GitHub / Tech Proof Enabled: </strong>
+                      Participants can submit GitHub repo URLs or project links as their proof of work, with optional descriptions and screenshots.
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -536,7 +723,7 @@ export function CreateChallengePage() {
                     <label className="text-sm font-medium">Duration (days) *</label>
                     <Input
                       type="number"
-                      min={7}
+                      min={1}
                       max={365}
                       error={errors.duration_days?.message}
                       {...form.register('duration_days', { valueAsNumber: true })}
@@ -545,21 +732,24 @@ export function CreateChallengePage() {
                 </div>
 
                 {/* Quick duration presets */}
-                <div className="flex gap-2">
-                  {[30, 60, 90, 100].map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setValue('duration_days', d)}
-                      className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                        values.duration_days === d
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border hover:border-primary/40'
-                      }`}
-                    >
-                      {d} days
-                    </button>
-                  ))}
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">Popular Durations:</label>
+                  <div className="flex gap-2">
+                    {[10, 14, 30, 60, 90, 100].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setValue('duration_days', d)}
+                        className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                          values.duration_days === d
+                            ? 'border-primary bg-primary/10 text-primary font-bold'
+                            : 'border-border hover:border-primary/40'
+                        }`}
+                      >
+                        {d}d
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

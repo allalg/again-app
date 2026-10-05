@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload, Camera, X, CheckCircle2, AlertCircle, ArrowLeft,
-  Image, ZoomIn, Clock, Target
+  Image, ZoomIn, Clock, Target, Github, Link as LinkIcon, ExternalLink, Code
 } from 'lucide-react'
 import { supabase, uploadFile, getSignedUrl } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth.store'
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/Input'
 import { Progress } from '@/components/ui/Progress'
 import { toast } from '@/components/ui/Toaster'
 import { LiveCameraCapture } from '@/components/ui/LiveCameraCapture'
-import { validateImageFile, generateStoragePath, formatDeadline, isDeadlinePast } from '@/lib/utils'
+import { validateImageFile, generateStoragePath, formatDeadline, isDeadlinePast, extractUrl, isGithubUrl, parseGithubRepoName } from '@/lib/utils'
 import { syncParticipantStreak } from '@/lib/streak'
 
 interface UploadedFile {
@@ -31,10 +31,12 @@ export function SubmitProofPage() {
   const navigate = useNavigate()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [showCameraModal, setShowCameraModal] = useState(false)
+  const [proofLink, setProofLink] = useState('')
   const [measuredValue, setMeasuredValue] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+
 
   const handleCameraCapture = (file: File) => {
     const validation = validateImageFile(file)
@@ -115,6 +117,17 @@ export function SubmitProofPage() {
     })
   }
 
+  // Auto-fill measuredValue with daily target if empty
+  useEffect(() => {
+    if (challenge?.daily_target_value && !measuredValue) {
+      setMeasuredValue(String(challenge.daily_target_value))
+    }
+  }, [challenge?.daily_target_value])
+
+  const isTechOrLinkUnit = ['repo', 'project', 'commit', 'pr', 'link', 'code'].includes(
+    (challenge?.daily_target_unit || '').toLowerCase()
+  ) || challenge?.measurement_type === 'custom'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
@@ -126,20 +139,29 @@ export function SubmitProofPage() {
       return
     }
 
-    if (files.length === 0) {
-      toast({ title: 'Photo required', description: 'Please add at least one photo as proof.', variant: 'destructive' })
+    const validFiles = files.filter((f) => !f.error)
+    const hasPhoto = validFiles.length > 0
+    const trimmedLink = proofLink.trim()
+    const trimmedNotes = notes.trim()
+
+    // Must provide at least one proof element
+    if (!hasPhoto && !trimmedLink && !trimmedNotes) {
+      toast({
+        title: 'Proof of work required',
+        description: 'Please provide at least a GitHub repo link, notes description, or photo proof.',
+        variant: 'destructive',
+      })
       return
     }
 
-    const validFiles = files.filter((f) => !f.error)
-    if (validFiles.length === 0) {
+    if (files.length > 0 && validFiles.length === 0) {
       toast({ title: 'Invalid files', description: 'Please remove invalid files first.', variant: 'destructive' })
       return
     }
 
     const value = parseFloat(measuredValue)
     if (isNaN(value) || value <= 0) {
-      toast({ title: 'Invalid measurement', description: 'Please enter your measured value.', variant: 'destructive' })
+      toast({ title: 'Invalid measurement', description: `Please enter the amount of ${challenge.daily_target_unit} achieved.`, variant: 'destructive' })
       return
     }
 
@@ -191,6 +213,15 @@ export function SubmitProofPage() {
       const combinedTotal = totalLoggedToday + value
       const meetsTarget = combinedTotal >= challenge.daily_target_value
 
+      // Combine link and notes cleanly
+      let finalNotes = trimmedNotes
+      if (trimmedLink) {
+        const fullUrl = trimmedLink.startsWith('http://') || trimmedLink.startsWith('https://')
+          ? trimmedLink
+          : `https://${trimmedLink}`
+        finalNotes = finalNotes ? `🔗 ${fullUrl}\n\n${finalNotes}` : `🔗 ${fullUrl}`
+      }
+
       // 2. Create submission record
       const { data: submission, error: submissionError } = await supabase
         .from('proof_submissions')
@@ -200,7 +231,7 @@ export function SubmitProofPage() {
           user_id: user.id,
           measured_value: value,
           measured_unit: challenge.daily_target_unit,
-          notes: notes || null,
+          notes: finalNotes || null,
           is_active: true,
           meets_target: meetsTarget,
         })
@@ -209,28 +240,30 @@ export function SubmitProofPage() {
 
       if (submissionError) throw submissionError
 
-      // 3. Upload photos (safely with fallback if bucket not yet initialized)
-      const totalFiles = validFiles.length
-      for (let i = 0; i < totalFiles; i++) {
-        const f = validFiles[i]
-        const path = generateStoragePath(id!, user.id, f.file.name)
+      // 3. Upload photos (only if photos were attached)
+      if (validFiles.length > 0) {
+        const totalFiles = validFiles.length
+        for (let i = 0; i < totalFiles; i++) {
+          const f = validFiles[i]
+          const path = generateStoragePath(id!, user.id, f.file.name)
 
-        try {
-          await uploadFile('proof-photos', path, f.file, { upsert: true })
-        } catch (uploadErr: any) {
-          console.warn('Storage upload note:', uploadErr.message)
+          try {
+            await uploadFile('proof-photos', path, f.file, { upsert: true })
+          } catch (uploadErr: any) {
+            console.warn('Storage upload note:', uploadErr.message)
+          }
+
+          await supabase.from('proof_attachments').insert({
+            submission_id: submission.id,
+            storage_path: path,
+            file_name: f.file.name,
+            file_size_bytes: f.file.size,
+            mime_type: f.file.type,
+            upload_order: i + 1,
+          })
+
+          setUploadProgress(Math.round(((i + 1) / totalFiles) * 100))
         }
-
-        await supabase.from('proof_attachments').insert({
-          submission_id: submission.id,
-          storage_path: path,
-          file_name: f.file.name,
-          file_size_bytes: f.file.size,
-          mime_type: f.file.type,
-          upload_order: i + 1,
-        })
-
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100))
       }
 
       // 4. Update daily record status:
@@ -238,6 +271,7 @@ export function SubmitProofPage() {
       const nextStatus = challenge.proof_review_required
         ? 'submitted'
         : (meetsTarget ? 'completed' : 'incomplete')
+
 
       await supabase
         .from('daily_challenge_records')
@@ -415,11 +449,152 @@ export function SubmitProofPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Photo upload section */}
-        <div className="space-y-3">
+        {/* GitHub / Project Proof Link Section */}
+        <div className={`space-y-2 p-4 rounded-2xl border transition-all ${
+          isTechOrLinkUnit
+            ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20 shadow-sm'
+            : 'border-border bg-card'
+        }`}>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">
-              Proof Photo (required) · {files.length}/5
+            <label className="text-sm font-semibold flex items-center gap-2">
+              <Github className="h-4 w-4 text-primary" />
+              <span>GitHub Repo or Project Link {isTechOrLinkUnit ? '(Proof of Work)' : '(Optional)'}</span>
+            </label>
+            {isTechOrLinkUnit && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-primary/20 text-primary">
+                Daily Unit: {challenge?.daily_target_unit}
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Input
+              type="url"
+              placeholder="https://github.com/your-username/day-1-project"
+              value={proofLink}
+              onChange={(e) => setProofLink(e.target.value)}
+              className="pr-9 font-mono text-xs"
+            />
+            {proofLink && (
+              <button
+                type="button"
+                onClick={() => setProofLink('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {proofLink.trim() && (
+            <div className="flex items-center justify-between text-xs pt-1">
+              {isGithubUrl(proofLink) ? (
+                <span className="text-jade-500 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Valid GitHub: {parseGithubRepoName(proofLink) || proofLink}
+                </span>
+              ) : (
+                <span className="text-primary font-medium flex items-center gap-1">
+                  <LinkIcon className="h-3.5 w-3.5" /> Project Link Provided
+                </span>
+              )}
+              <a
+                href={proofLink.startsWith('http') ? proofLink : `https://${proofLink}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Test link <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            {isTechOrLinkUnit
+              ? 'Paste your repository URL, PR, or live tech demo link. Peers can inspect your code directly.'
+              : 'Optional: share a GitHub repository, pull request, or web link to document your daily work.'}
+          </p>
+        </div>
+
+        {/* Measured value */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium" htmlFor="measured-value">
+              Measured Result *
+            </label>
+            {/* Quick chips if repo/tech unit */}
+            {isTechOrLinkUnit && (
+              <div className="flex gap-1 items-center">
+                <span className="text-[10px] text-muted-foreground mr-1">Quick:</span>
+                {[1, 2, 3].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setMeasuredValue(String(val))}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                      parseFloat(measuredValue) === val
+                        ? 'bg-primary text-primary-foreground border-primary font-bold'
+                        : 'text-muted-foreground hover:text-foreground border-border bg-card'
+                    }`}
+                  >
+                    {val} {challenge?.daily_target_unit}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              id="measured-value"
+              type="number"
+              step={isTechOrLinkUnit ? '1' : '0.1'}
+              min="0.1"
+              placeholder={`e.g. ${challenge?.daily_target_value ?? '1'}`}
+              value={measuredValue}
+              onChange={(e) => setMeasuredValue(e.target.value)}
+              className="flex-1"
+              required
+            />
+            <div className="flex items-center px-4 rounded-xl border bg-muted text-sm font-medium text-muted-foreground whitespace-nowrap">
+              {challenge?.daily_target_unit ?? 'units'}
+            </div>
+          </div>
+          {challenge && measuredValue && (
+            <div className={`text-xs mt-1 font-medium ${
+              parseFloat(measuredValue) >= challenge.daily_target_value
+                ? 'text-jade-500'
+                : 'text-red-500'
+            }`}>
+              {parseFloat(measuredValue) >= challenge.daily_target_value
+                ? `✓ Meets target (${challenge.daily_target_value} ${challenge.daily_target_unit})`
+                : `✗ Below target — needs ${challenge.daily_target_value} ${challenge.daily_target_unit}`}
+            </div>
+          )}
+        </div>
+
+        {/* Description / Notes */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium" htmlFor="notes">
+            Description / Work Notes {proofLink ? '(Optional)' : '(Recommended)'}
+          </label>
+          <textarea
+            id="notes"
+            className="flex min-h-[90px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+            placeholder={isTechOrLinkUnit ? "What did you build today? Key features, tech stack used, or challenges overcome..." : "How did it go? Any challenges today?"}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={500}
+          />
+          <div className="flex justify-between text-[11px] text-muted-foreground px-1">
+            <span>Provide details for your accountability partner</span>
+            <span>{notes.length}/500</span>
+          </div>
+        </div>
+
+        {/* Photo upload section (Now optional if link or description provided) */}
+        <div className="space-y-3 pt-1 border-t border-border/60">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <span>Proof Photos</span>
+              <span className="text-xs text-muted-foreground font-normal">
+                {proofLink.trim() || notes.trim() ? '(Optional)' : '(Recommended)'} · {files.length}/5
+              </span>
             </label>
             <span className="font-mono text-[10px] text-cinnabar-600 dark:text-cinnabar-400 font-semibold">
               LIVE CAPTURE READY
@@ -451,7 +626,7 @@ export function SubmitProofPage() {
             <input {...getInputProps()} />
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground p-3">
               <Image className="h-4 w-4" />
-              <span>Or click here to choose photo from device gallery</span>
+              <span>Or click here to upload screenshot / photo from device</span>
             </div>
           </div>
 
@@ -498,60 +673,11 @@ export function SubmitProofPage() {
           )}
         </div>
 
-        {/* Measured value */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium" htmlFor="measured-value">
-            Measured Result *
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id="measured-value"
-              type="number"
-              step="0.1"
-              min="0"
-              placeholder={`e.g. ${challenge?.daily_target_value ?? '30'}`}
-              value={measuredValue}
-              onChange={(e) => setMeasuredValue(e.target.value)}
-              className="flex-1"
-              required
-            />
-            <div className="flex items-center px-4 rounded-xl border bg-muted text-sm font-medium text-muted-foreground whitespace-nowrap">
-              {challenge?.daily_target_unit ?? 'units'}
-            </div>
-          </div>
-          {challenge && measuredValue && (
-            <div className={`text-xs mt-1 font-medium ${
-              parseFloat(measuredValue) >= challenge.daily_target_value
-                ? 'text-jade-500'
-                : 'text-red-500'
-            }`}>
-              {parseFloat(measuredValue) >= challenge.daily_target_value
-                ? `✓ Meets target (${challenge.daily_target_value} ${challenge.daily_target_unit})`
-                : `✗ Below target — needs ${challenge.daily_target_value} ${challenge.daily_target_unit}`}
-            </div>
-          )}
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium" htmlFor="notes">
-            Notes (optional)
-          </label>
-          <textarea
-            id="notes"
-            className="flex min-h-[80px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-            placeholder="How did it go? Any challenges today?"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            maxLength={500}
-          />
-        </div>
-
         {/* Upload progress */}
         {isSubmitting && uploadProgress > 0 && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Uploading photos...</span>
+              <span>Uploading proof attachments...</span>
               <span>{uploadProgress}%</span>
             </div>
             <Progress value={uploadProgress} variant="streak" />
@@ -564,14 +690,23 @@ export function SubmitProofPage() {
           size="lg"
           className="w-full"
           loading={isSubmitting}
-          disabled={files.length === 0}
+          disabled={
+            isSubmitting ||
+            (!files.some(f => !f.error) && !proofLink.trim() && !notes.trim()) ||
+            !measuredValue ||
+            parseFloat(measuredValue) <= 0
+          }
         >
-          <Camera className="h-4 w-4 mr-2" />
+          {proofLink.trim() || isTechOrLinkUnit ? (
+            <Github className="h-4 w-4 mr-2" />
+          ) : (
+            <Camera className="h-4 w-4 mr-2" />
+          )}
           {isDisputed
             ? 'Re-submit Proof (Retry) 🔄'
             : totalLoggedToday > 0
             ? `+ Log Additional Entry (${totalLoggedToday + (parseFloat(measuredValue) || 0)} ${challenge?.daily_target_unit ?? ''} Total)`
-            : 'Submit Proof'}
+            : (proofLink.trim() || isTechOrLinkUnit ? 'Submit Tech Proof' : 'Submit Proof')}
         </Button>
       </form>
     </div>

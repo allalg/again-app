@@ -5,7 +5,8 @@ import {
   ArrowLeft, Camera, MessageCircle, Trophy, Calendar,
   DollarSign, Users, Settings, Play, Pause, CheckCircle2,
   AlertCircle, Clock, Share2, Copy, Check, Trash2, LogOut,
-  X, Eye, XCircle, RotateCcw, AlertTriangle, Plus
+  X, Eye, XCircle, RotateCcw, AlertTriangle, Plus,
+  Github, ExternalLink, Link as LinkIcon
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth.store'
@@ -17,7 +18,8 @@ import { UserAvatar } from '@/components/ui/Avatar'
 import { toast } from '@/components/ui/Toaster'
 import {
   formatDate, formatCurrency, getDaysRemaining, calculateCompletionRate,
-  getGradientForCategory, getCategoryEmoji, getDayLabel, cn
+  getGradientForCategory, getCategoryEmoji, getDayLabel, cn,
+  extractUrl, isGithubUrl, parseGithubRepoName, cleanNotesWithoutUrl
 } from '@/lib/utils'
 import { syncParticipantStreak, calculateStreakFromRecords } from '@/lib/streak'
 import type { ChallengeWithParticipants, DailyStatus } from '@/lib/database.types'
@@ -910,13 +912,13 @@ export function ChallengeDetailPage() {
                     {submission && (
                       <p className="text-xs text-muted-foreground">
                         {submission.measured_value} {submission.measured_unit}
-                        {submission.notes ? ` · "${submission.notes}"` : ''}
+                        {submission.notes ? ` · "${cleanNotesWithoutUrl(submission.notes, extractUrl(submission.notes)) || submission.notes}"` : ''}
                       </p>
                     )}
                   </div>
 
-                  {/* Photo thumbnail */}
-                  {attachments.length > 0 && (
+                  {/* Photo or Link thumbnail */}
+                  {attachments.length > 0 ? (
                     <button
                       type="button"
                       onClick={() => setSelectedProof({
@@ -937,7 +939,36 @@ export function ChallengeDetailPage() {
                         <Eye className="h-4 w-4 text-white" />
                       </div>
                     </button>
-                  )}
+                  ) : submission ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProof({
+                        ...record,
+                        profile,
+                        submission,
+                        attachments,
+                      })}
+                      className="h-9 px-2.5 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 flex items-center gap-1.5 text-xs text-primary font-medium transition-colors flex-shrink-0 shadow-sm"
+                      title="Click to view proof & code link"
+                    >
+                      {extractUrl(submission.notes) && isGithubUrl(extractUrl(submission.notes)) ? (
+                        <>
+                          <Github className="h-3.5 w-3.5" />
+                          <span>Repo</span>
+                        </>
+                      ) : extractUrl(submission.notes) ? (
+                        <>
+                          <LinkIcon className="h-3.5 w-3.5" />
+                          <span>Link</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Proof</span>
+                        </>
+                      )}
+                    </button>
+                  ) : null}
 
                   <span className="text-xs text-muted-foreground">
                     {formatDate(record.challenge_day, 'MMM d')}
@@ -1040,6 +1071,9 @@ export function ChallengeDetailPage() {
         const allAttachments = submissionsList.flatMap((s: any) => s.attachments || [])
         const activeSubmission = submissionsList[submissionsList.length - 1] || selectedProof.submission
         const isMyProof = selectedProof.user_id === user?.id
+        const proofUrl = extractUrl(activeSubmission?.notes) || submissionsList.map((s: any) => extractUrl(s.notes)).find(Boolean)
+        const repoName = parseGithubRepoName(proofUrl)
+        const cleanNotes = cleanNotesWithoutUrl(activeSubmission?.notes, proofUrl)
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
@@ -1075,6 +1109,54 @@ export function ChallengeDetailPage() {
                 </button>
               </div>
 
+              {/* GitHub / Project Link Proof Card */}
+              {proofUrl && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      {isGithubUrl(proofUrl) ? (
+                        <div className="h-9 w-9 rounded-lg bg-black text-white dark:bg-white dark:text-black flex items-center justify-center shadow-sm">
+                          <Github className="h-5 w-5" />
+                        </div>
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
+                          <LinkIcon className="h-5 w-5" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                          <span>{isGithubUrl(proofUrl) ? (repoName || 'GitHub Repository') : 'Project Link'}</span>
+                          <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                            Proof
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground">Digital proof of work</p>
+                      </div>
+                    </div>
+                    <a
+                      href={proofUrl.startsWith('http') ? proofUrl : `https://${proofUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      <span>Open Link</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                  <div className="font-mono text-xs bg-background/80 border rounded-lg px-2.5 py-1.5 text-muted-foreground break-all select-all flex items-center justify-between gap-2">
+                    <span className="truncate">{proofUrl}</span>
+                    <a
+                      href={proofUrl.startsWith('http') ? proofUrl : `https://${proofUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex-shrink-0"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Photo Preview & Thumbnails */}
               {allAttachments.length > 0 ? (
                 <div className="space-y-2">
@@ -1102,6 +1184,11 @@ export function ChallengeDetailPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              ) : proofUrl ? (
+                <div className="py-2.5 px-3.5 rounded-xl bg-jade-500/10 border border-jade-500/20 text-jade-600 dark:text-jade-400 text-xs font-medium flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Verified digital proof of work submitted via repository link</span>
                 </div>
               ) : (
                 <div className="p-8 text-center bg-muted/30 rounded-xl text-muted-foreground text-sm">
@@ -1137,24 +1224,45 @@ export function ChallengeDetailPage() {
                 <div className="space-y-1.5 border border-border/60 rounded-xl p-3 bg-muted/10">
                   <span className="text-xs font-semibold text-muted-foreground">Daily Entries Logged:</span>
                   <div className="space-y-1">
-                    {submissionsList.map((sub: any, idx: number) => (
-                      <div key={sub.id || idx} className="flex items-center justify-between text-xs py-1 border-b border-border/30 last:border-0">
-                        <span className="font-medium text-foreground">
-                          Log #{idx + 1}: {sub.measured_value} {sub.measured_unit}
-                        </span>
-                        <span className="text-muted-foreground text-[11px]">
-                          {sub.submitted_at ? formatDate(sub.submitted_at, 'h:mm a') : ''}
-                          {sub.notes ? ` · "${sub.notes}"` : ''}
-                        </span>
-                      </div>
-                    ))}
+                    {submissionsList.map((sub: any, idx: number) => {
+                      const subUrl = extractUrl(sub.notes)
+                      const subCleanNotes = cleanNotesWithoutUrl(sub.notes, subUrl)
+                      return (
+                        <div key={sub.id || idx} className="flex items-center justify-between text-xs py-1.5 border-b border-border/30 last:border-0 gap-2">
+                          <span className="font-medium text-foreground whitespace-nowrap">
+                            Log #{idx + 1}: {sub.measured_value} {sub.measured_unit}
+                          </span>
+                          <div className="flex items-center gap-2 overflow-hidden text-right">
+                            {subCleanNotes && (
+                              <span className="text-muted-foreground text-[11px] truncate">
+                                "{subCleanNotes}"
+                              </span>
+                            )}
+                            {subUrl && (
+                              <a
+                                href={subUrl.startsWith('http') ? subUrl : `https://${subUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline text-[11px] font-mono flex items-center gap-0.5 flex-shrink-0"
+                              >
+                                {isGithubUrl(subUrl) ? <Github className="h-3 w-3" /> : <LinkIcon className="h-3 w-3" />}
+                                Link
+                              </a>
+                            )}
+                            <span className="text-muted-foreground text-[10px] flex-shrink-0">
+                              {sub.submitted_at ? formatDate(sub.submitted_at, 'h:mm a') : ''}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
 
-              {submissionsList.length === 1 && activeSubmission?.notes && (
+              {submissionsList.length === 1 && cleanNotes && (
                 <div className="text-xs bg-muted/20 p-3 rounded-lg text-muted-foreground">
-                  <strong className="text-foreground">Notes:</strong> {activeSubmission.notes}
+                  <strong className="text-foreground">Description / Notes:</strong> {cleanNotes}
                 </div>
               )}
 

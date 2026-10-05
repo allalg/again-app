@@ -225,3 +225,47 @@ export function noop() {}
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+// =====================================================================
+// LINK & GITHUB REPO UTILITIES
+// =====================================================================
+
+export function extractUrl(text?: string | null): string | null {
+  if (!text) return null
+  const match = text.match(/https?:\/\/[^\s<>"'{}|\\^`[\]]+/i)
+  if (!match) return null
+  // Strip trailing punctuation like .,:;)
+  return match[0].replace(/[.,:;)]+$/, '')
+}
+
+export function isGithubUrl(url?: string | null): boolean {
+  if (!url) return false
+  return /^(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/i.test(url)
+}
+
+export function parseGithubRepoName(url?: string | null): string | null {
+  if (!url) return null
+  try {
+    const raw = url.startsWith('http') ? url : `https://${url}`
+    const parsed = new URL(raw)
+    if (parsed.hostname.includes('github.com')) {
+      const parts = parsed.pathname.split('/').filter(Boolean)
+      if (parts.length >= 2) {
+        return `${parts[0]}/${parts[1]}`
+      }
+    }
+  } catch {
+    const match = url.match(/github\.com\/([^/\s]+)\/([^/?#\s]+)/i)
+    if (match) return `${match[1]}/${match[2]}`
+  }
+  return null
+}
+
+export function cleanNotesWithoutUrl(notes?: string | null, url?: string | null): string {
+  if (!notes) return ''
+  if (!url) return notes.trim()
+  return notes
+    .replace(new RegExp(`🔗?\\s*${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi'), '')
+    .trim()
+}
+
